@@ -1,74 +1,36 @@
 #include <iostream>
 #include <fstream>
-#include <chrono>
-#include <cmath>
-#include <cstdlib>
-#include <cstring>
 
 using namespace std;
 
+// Counteres nameados
 struct Counter {
-    const char* name;
+    string name;
     int value;
 };
 
-struct Swap {
-    int length;
-    int *elements_sl;
-    int *elements_ml;
-    int *elements_rl;
-    int *elements_sh;
-    int *elements_mh;
-    int *elements_rh;
+// List contendo 6 vetores e os counters
+struct List {
+    int lenght;
+    int* elementsLP;
+    int* elementsLM;
+    int* elementsLA;
+    int* elementsHP;
+    int* elementsHM;
+    int* elementsHA;
     Counter counters[6];
 };
 
-Swap make_swap(int len, int *base_elements) {
-    Swap s;
-    s.length = len;
-    s.elements_sl = new int[len];
-    s.elements_ml = new int[len];
-    s.elements_rl = new int[len];
-    s.elements_sh = new int[len];
-    s.elements_mh = new int[len];
-    s.elements_rh = new int[len];
-    for (int i = 0; i < len; ++i) {
-        int v = base_elements[i];
-        s.elements_sl[i] = v;
-        s.elements_ml[i] = v;
-        s.elements_rl[i] = v;
-        s.elements_sh[i] = v;
-        s.elements_mh[i] = v;
-        s.elements_rh[i] = v;
-    }
-    s.counters[0] = {"LP", 0};
-    s.counters[1] = {"LM", 0};
-    s.counters[2] = {"LA", 0};
-    s.counters[3] = {"HP", 0};
-    s.counters[4] = {"HM", 0};
-    s.counters[5] = {"HA", 0};
-    return s;
+// modes
+enum Modo { LP=0, LM=1, LA=2, HP=3, HM=4, HA=5 };
+
+inline void swap(int &a, int &b, List& list, int mode) {
+    int tmp = a; a = b; b = tmp;
+    list.counters[mode].value++;
 }
 
-void free_swap(Swap &s) {
-    delete[] s.elements_sl;
-    delete[] s.elements_ml;
-    delete[] s.elements_rl;
-    delete[] s.elements_sh;
-    delete[] s.elements_mh;
-    delete[] s.elements_rh;
-}
-
-inline void incCounter(Swap &list, const char *modo) {
-    for (int i = 0; i < 6; ++i) {
-        if (strcmp(list.counters[i].name, modo) == 0) {
-            list.counters[i].value++;
-            return;
-        }
-    }
-}
-
-inline int median_of_3(int *elements, int start, int end) {
+// mediana de tres (índices relativos a start..end)
+int medianOfThree(int* elements, int start, int end) {
     int n = end - start + 1;
     int idx1 = start + n / 4;
     int idx2 = start + n / 2;
@@ -81,161 +43,157 @@ inline int median_of_3(int *elements, int start, int end) {
     return idx3;
 }
 
-// lomuto partition (elements é int*)
-int lomuto(int *elements, int start, int end, Swap &list, const char *modo) {
-    if (strcmp(modo, "LM") == 0) {
-        int pivo_idx = median_of_3(elements, start, end);
-        // swap e contador
-        int tmp = elements[pivo_idx]; elements[pivo_idx] = elements[end]; elements[end] = tmp;
-        incCounter(list, modo);
-    } else if (strcmp(modo, "LA") == 0) {
+// Lomuto
+int lomuto(int* elements, int start, int end, List& list, int mode) {
+    int pivotIndex = end;
+    if (mode == LM) {
+        pivotIndex = medianOfThree(elements, start, end);
+        swap(elements[pivotIndex], elements[end], list, mode);
+    } else if (mode == LA) {
         int n = end - start + 1;
-        int val = elements[start];
-        int aval = val < 0 ? -val : val;
-        int pivo_idx = start + (aval % n);
-        int tmp = elements[pivo_idx]; elements[pivo_idx] = elements[end]; elements[end] = tmp;
-        incCounter(list, modo);
+        int idx = start + ( (elements[start] < 0) ? -elements[start] : elements[start]) % n;
+        pivotIndex = idx;
+        swap(elements[pivotIndex], elements[end], list, mode);
     }
-
     int pivo = elements[end];
     int x = start - 1;
     for (int y = start; y < end; ++y) {
         if (elements[y] <= pivo) {
-            x++;
-            int tmp = elements[x]; elements[x] = elements[y]; elements[y] = tmp;
-            incCounter(list, modo);
+            ++x;
+            swap(elements[x], elements[y], list, mode);
         }
     }
-    int tmp = elements[x+1]; elements[x+1] = elements[end]; elements[end] = tmp;
-    incCounter(list, modo);
+    swap(elements[x+1], elements[end], list, mode);
     return x + 1;
 }
 
-void lomuto_quicksort(int *elements, int start, int end, Swap &list, const char *modo) {
-    incCounter(list, modo);
+void quicksortLomuto(int* elements, int start, int end, List& list, int mode) {
+    list.counters[mode].value++; // conta a chamada (igual ao Python)
     if (start < end) {
-        int p = lomuto(elements, start, end, list, modo);
-        lomuto_quicksort(elements, start, p - 1, list, modo);
-        lomuto_quicksort(elements, p + 1, end, list, modo);
+        int p = lomuto(elements, start, end, list, mode);
+        quicksortLomuto(elements, start, p - 1, list, mode);
+        quicksortLomuto(elements, p + 1, end, list, mode);
     }
 }
 
-int hoare_partition(int *elements, int start, int end, Swap &list, const char *modo) {
-    if (strcmp(modo, "HM") == 0) {
-        int pivo_idx = median_of_3(elements, start, end);
-        int tmp = elements[pivo_idx]; elements[pivo_idx] = elements[start]; elements[start] = tmp;
-        incCounter(list, modo);
-    } else if (strcmp(modo, "HA") == 0) {
+// Hoare
+int hoare(int* elements, int start, int end, List& list, int mode) {
+    int pivotIndex = start;
+    if (mode == HM) {
+        pivotIndex = medianOfThree(elements, start, end);
+        swap(elements[pivotIndex], elements[start], list, mode);
+    } else if (mode == HA) {
         int n = end - start + 1;
-        int val = elements[start];
-        int aval = val < 0 ? -val : val;
-        int pivo_idx = start + (aval % n);
-        int tmp = elements[pivo_idx]; elements[pivo_idx] = elements[start]; elements[start] = tmp;
-        incCounter(list, modo);
+        int idx = start + ( (elements[start] < 0) ? -elements[start] : elements[start]) % n;
+        pivotIndex = idx;
+        swap(elements[pivotIndex], elements[start], list, mode);
     }
-
     int pivo = elements[start];
-    int x = start - 1;
-    int y = end + 1;
+    int i = start - 1;
+    int j = end + 1;
     while (true) {
-        do { y--; } while (elements[y] > pivo);
-        do { x++; } while (elements[x] < pivo);
-        if (x < y) {
-            int tmp = elements[x]; elements[x] = elements[y]; elements[y] = tmp;
-            incCounter(list, modo);
-        } else {
-            return y;
-        }
+        do { --j; } while (elements[j] > pivo);
+        do { ++i; } while (elements[i] < pivo);
+        if (i < j) swap(elements[i], elements[j], list, mode);
+        else return j;
     }
 }
 
-void hoare_quicksort(int *elements, int start, int end, Swap &list, const char *modo) {
-    incCounter(list, modo);
+void quicksortHoare(int* elements, int start, int end, List& list, int mode) {
+    list.counters[mode].value++; // conta a chamada
     if (start < end) {
-        int p = hoare_partition(elements, start, end, list, modo);
-        hoare_quicksort(elements, start, p, list, modo);
-        hoare_quicksort(elements, p + 1, end, list, modo);
+        int p = hoare(elements, start, end, list, mode);
+        quicksortHoare(elements, start, p, list, mode);
+        quicksortHoare(elements, p + 1, end, list, mode);
     }
 }
 
-void sort_counters_stable(Counter arr[6]) {
-    for (int i = 1; i < 6; ++i) {
-        Counter key = arr[i];
+void sortCounters(Counter* v, int n) {
+    for (int i = 1; i < n; ++i) {
+        Counter key = v[i];
         int j = i - 1;
-        while (j >= 0 && arr[j].value > key.value) {
-            arr[j + 1] = arr[j];
-            j--;
+        while (j >= 0 && v[j].value > key.value) {
+            v[j+1] = v[j];
+            --j;
         }
-        arr[j + 1] = key;
+        v[j+1] = key;
     }
 }
 
-Swap* read_file(const char *input_path, int &out_count) {
-    ifstream in(input_path);
-    if (!in.is_open()) {
-        cerr << "Erro ao abrir arquivo de entrada\n";
-        out_count = 0;
-        return nullptr;
-    }
-    int num_lists;
-    in >> num_lists;
-    out_count = num_lists;
-    Swap *lists = new Swap[num_lists];
-    for (int t = 0; t < num_lists; ++t) {
-        int length;
-        in >> length;
-        int *temp = new int[length];
-        for (int i = 0; i < length; ++i) in >> temp[i];
-        // constrói Swap na posição t
-        lists[t] = make_swap(length, temp);
-        delete[] temp;
-    }
-    in.close();
-    return lists;
-}
-
-void write_file(const char *output_path, Swap *lists, int count) {
-    ofstream out(output_path);
-    if (!out.is_open()) {
-        cerr << "Erro ao abrir arquivo de saida\n";
-        return;
-    }
-    for (int i = 0; i < count; ++i) {
-        // cópia dos counters para ordenar
-        Counter cpy[6];
-        for (int k = 0; k < 6; ++k) cpy[k] = lists[i].counters[k];
-        sort_counters_stable(cpy);
-        out << "[" << lists[i].length << "]:";
-        for (int k = 0; k < 6; ++k) {
-            out << cpy[k].name << "(" << cpy[k].value << ")";
-            if (k != 5) out << ",";
+void lerArquivo(ifstream& fin, List*& lists, int& numLists) {
+    fin >> numLists;
+    lists = new List[numLists];
+    for (int i = 0; i < numLists; ++i) {
+        int tam;
+        fin >> tam;
+        lists[i].lenght = tam;
+        lists[i].elementsLP = new int[tam];
+        lists[i].elementsLM = new int[tam];
+        lists[i].elementsLA = new int[tam];
+        lists[i].elementsHP = new int[tam];
+        lists[i].elementsHM = new int[tam];
+        lists[i].elementsHA = new int[tam];
+        // inicializa names dos counters (mesma ordem do Python)
+        lists[i].counters[0].name = "LP";
+        lists[i].counters[1].name = "LM";
+        lists[i].counters[2].name = "LA";
+        lists[i].counters[3].name = "HP";
+        lists[i].counters[4].name = "HM";
+        lists[i].counters[5].name = "HA";
+        for (int k = 0; k < 6; ++k) lists[i].counters[k].value = 0;
+        // ler elements (pode estar em uma ou várias linhas)
+        for (int j = 0; j < tam; ++j) {
+            int val;
+            fin >> val;
+            lists[i].elementsLP[j] = val;
+            lists[i].elementsLM[j] = val;
+            lists[i].elementsLA[j] = val;
+            lists[i].elementsHP[j] = val;
+            lists[i].elementsHM[j] = val;
+            lists[i].elementsHA[j] = val;
         }
-        out << "\n";
     }
-    out.close();
-}
-
-void process_list(Swap &list) {
-    lomuto_quicksort(list.elements_sl, 0, list.length - 1, list, "LP");
-    lomuto_quicksort(list.elements_ml, 0, list.length - 1, list, "LM");
-    lomuto_quicksort(list.elements_rl, 0, list.length - 1, list, "LA");
-    hoare_quicksort(list.elements_sh, 0, list.length - 1, list, "HP");
-    hoare_quicksort(list.elements_mh, 0, list.length - 1, list, "HM");
-    hoare_quicksort(list.elements_rh, 0, list.length - 1, list, "HA");
 }
 
 int main(int argc, char* argv[]) {
-    int count;
-    Swap *lists = read_file(argv[1], count);
-    if (!lists) return 1;
+    ifstream fin;
+    ofstream fout;
+    fin.open(argv[1]);
+    fout.open(argv[2]);
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
 
-    for (int i = 0; i < count; ++i) {
-        process_list(lists[i]);
+    List* lists = nullptr;
+    int numLists = 0;
+    lerArquivo(fin, lists, numLists);
+
+    // processa cada list sequencialmente (mesma lógica do Python, sem paralelismo)
+    for (int i = 0; i < numLists; ++i) {
+        int tam = lists[i].lenght;
+        if (tam > 0) {
+            quicksortLomuto(lists[i].elementsLP, 0, tam - 1, lists[i], LP);
+            quicksortLomuto(lists[i].elementsLM, 0, tam - 1, lists[i], LM);
+            quicksortLomuto(lists[i].elementsLA, 0, tam - 1, lists[i], LA);
+            quicksortHoare(lists[i].elementsHP, 0, tam - 1, lists[i], HP);
+            quicksortHoare(lists[i].elementsHM, 0, tam - 1, lists[i], HM);
+            quicksortHoare(lists[i].elementsHA, 0, tam - 1, lists[i], HA);
+        } else {
+            for (int m = 0; m < 6; ++m) lists[i].counters[m].value++;
+        }
+        // ordenar os 6 counters por value (estável)
+        sortCounters(lists[i].counters, 6);
     }
 
-    write_file(argv[2], lists, count);
-
-    for (int i = 0; i < count; ++i) free_swap(lists[i]);
-    delete[] lists;
+    // escrita no formato do script Python: "[<lenght>]:LP(val),LM(val),..."
+    for (int i = 0; i < numLists; ++i) {
+        fout << "[" << lists[i].lenght << "]:";
+        for (int j = 0; j < 6; ++j) {
+            fout << lists[i].counters[j].name << "(" << lists[i].counters[j].value << ")";
+            if (j + 1 < 6) fout << ",";
+        }
+        fout << "\n";
+    }
+    fin.close();
+    fout.close();
     return 0;
 }
