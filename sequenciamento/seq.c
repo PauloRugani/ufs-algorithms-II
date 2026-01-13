@@ -5,10 +5,6 @@
 #include <time.h>
 #include <pthread.h>
 
-//////////////////////////
-// Estruturas de dados   //
-//////////////////////////
-
 typedef struct {
     char* sequencia;
 } Gene;
@@ -20,10 +16,6 @@ typedef struct {
     int prob;
     int order;
 } Doenca;
-
-//////////////////////////
-// Funções de I/O        //
-//////////////////////////
 
 void extrair_info(FILE *input, char **dna, int *tamSubcadeia, Doenca **doencas, int *numDoencas) {
     fscanf(input, "%d", tamSubcadeia);
@@ -49,10 +41,6 @@ void extrair_info(FILE *input, char **dna, int *tamSubcadeia, Doenca **doencas, 
         }
     }
 }
-
-//////////////////////////
-// Autômato de sufixos   //
-//////////////////////////
 
 #define ALFABETO 4
 
@@ -144,9 +132,6 @@ int longestMatchFrom(const SuffixAutomaton* sam, const char* gene, int start) {
     return length;
 }
 
-//////////////////////////
-// DP para blocos do gene //
-//////////////////////////
 
 int maxMatchDP(const SuffixAutomaton* sam, const char* gene, int tamSubcadeia) {
     int m = strlen(gene);
@@ -174,10 +159,6 @@ int gene_detect(const SuffixAutomaton* sam, const char* gene, int tamSubcadeia) 
     int total = maxMatchDP(sam, gene, tamSubcadeia);
     return total >= (int)ceil(0.9 * strlen(gene));
 }
-
-//////////////////////////
-// Threads para cálculo   //
-//////////////////////////
 
 typedef struct {
     Doenca* doencas;
@@ -228,9 +209,6 @@ void calc_prob(Doenca* doencas, int numDoencas, const char* dna, int tamSubcadei
         pthread_join(threads[t], NULL);
 }
 
-//////////////////////////
-// MergeSort estável      //
-//////////////////////////
 
 void merge(Doenca* arr, int l, int m, int r) {
     int n1 = m - l + 1;
@@ -264,18 +242,10 @@ void mergeSort(Doenca* arr, int l, int r) {
     }
 }
 
-//////////////////////////
-// Impressão do resultado //
-//////////////////////////
-
 void print_doenca(FILE* output, Doenca* doencas, int numDoencas) {
     for (int i = 0; i < numDoencas; i++)
         fprintf(output, "%s->%d%%\n", doencas[i].nome, doencas[i].prob);
 }
-
-//////////////////////////
-// Função principal      //
-//////////////////////////
 
 int main(int argc, char* argv[]) {
     clock_t start = clock();

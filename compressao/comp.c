@@ -7,7 +7,6 @@
 #define MAX_SEQ 10000
 #define MAX_NODES 512
 
-/* ================= RLE ================= */
 int rle_compress(unsigned char *data, int n, unsigned char *out) {
     int i = 0, k = 0;
     while (i < n) {
@@ -21,7 +20,6 @@ int rle_compress(unsigned char *data, int n, unsigned char *out) {
     return k;
 }
 
-/* ================= Huffman ================= */
 typedef struct HuffNode {
     int freq;
     int symbol;
@@ -95,7 +93,6 @@ static HuffNode* buildHuffman(int *freq, HuffNode *nodes, int *nodeCount) {
     return heapPop(&heap);
 }
 
-/* ================= Geração de códigos -> armazenar em int + tamanho ================= */
 typedef struct {
     unsigned int code;
     int len;
@@ -112,7 +109,6 @@ static void buildCodes(HuffNode *node, unsigned int code, int len, HuffCode code
     if (node->right) buildCodes(node->right, (code<<1)|1u, len+1, codes);
 }
 
-/* ================= Huffman encode direto em bytes ================= */
 static int huffmanEncode(unsigned char *data, int n, unsigned char *out) {
     int freq[256] = {0};
     for (int i = 0; i < n; i++) freq[data[i]]++;
@@ -142,7 +138,6 @@ static int huffmanEncode(unsigned char *data, int n, unsigned char *out) {
     return outLen;
 }
 
-/* ================= fast hex lookup ================= */
 static char hex_lookup[256][2];
 static void init_hex_lookup(void) {
     const char *h = "0123456789ABCDEF";
@@ -152,7 +147,6 @@ static void init_hex_lookup(void) {
     }
 }
 
-/* ================= Processa cada sequência (otimizado para escrita hex) ================= */
 static void processSequence_to_buffer(unsigned char *data, int n, char *buf, size_t bufcap) {
     unsigned char rle[MAX_SEQ*2];
     int rle_sz = rle_compress(data, n, rle);
@@ -189,7 +183,6 @@ static void processSequence_to_buffer(unsigned char *data, int n, char *buf, siz
     if (pos >= bufcap) buf[bufcap-1] = '\0'; else buf[pos] = '\0';
 }
 
-/* ================= Thread pool (stride) ================= */
 typedef struct {
     int T;
     unsigned char **seq_data;
@@ -210,7 +203,6 @@ static void *pool_thread(void *arg) {
     return NULL;
 }
 
-/* ================= Helper: get number of cores from env (no sysconf) ================= */
 static int get_num_cores_env(void) {
     char *env = getenv("NUMBER_OF_PROCESSORS");
     if (env) {
@@ -220,7 +212,6 @@ static int get_num_cores_env(void) {
     return 1;
 }
 
-/* ================= MAIN ================= */
 int main(int argc, char* argv[]) {
     if (argc != 3) { fprintf(stderr, "Uso: %s <entrada> <saida>\n", argv[0]); return 1; }
 
